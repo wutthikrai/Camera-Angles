@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ระบบจัดการเรียนการสอนภาษาภาพและการตัดต่อ ม.5 (คศ.4)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Kanit', sans-serif;
+    }
+    .grid-thirds {
+      background-image:
+        linear-gradient(to right, rgba(255, 255, 255, 0.55) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(255, 255, 255, 0.55) 1px, transparent 1px);
+      background-size: 33.333% 33.333%;
+    }
+  </style>
+</head>
+<body class="bg-sky-50/70 text-slate-800 min-h-screen">
+
+  <!-- แถบนำทางด้านบน -->
+  <header class="bg-white border-b border-sky-100 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-xl bg-amber-300 text-slate-900 font-bold flex items-center justify-center shadow-sm">
+          ม.5
+        </div>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-900 leading-tight">
+            Visual Framing & Editing Studio
+          </h1>
+          <p class="text-xs text-slate-500">
+            มุมกล้อง · ขนาดภาพ · องค์ประกอบภาพ · การตัดต่อวิดีทัศน์
+          </p>
+        </div>
+      </div>
+
+      <!-- ปุ่มสลับบทบาทและปุ่มตั้งค่า Supabase -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <div class="inline-flex rounded-xl bg-sky-100 p-1">
+          <button id="btnRoleStudent" onclick="switchRole('student')"
+            class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-sky-600 text-white shadow-sm transition">
+            มุมมองนักเรียน
+          </button>
+          <button id="btnRoleTeacher" onclick="switchRole('teacher')"
+            class="px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-sky-900 hover:bg-sky-200/70 transition">
+            แดชบอร์ดครูผู้สอน
+          </button>
+        </div>
+
+        <button onclick="toggleConfigModal(true)"
+          class="px-3 py-2 rounded-xl border border-amber-300 bg-amber-100/80 hover:bg-amber-200/80 text-amber-950 text-xs sm:text-sm font-medium transition">
+          ตั้งค่า Supabase
+        </button>
+      </div>
+    </div>
+
+    <!-- แถบสถานะการเชื่อมต่อ -->
+    <div id="connectionBanner" class="bg-amber-50 border-t border-amber-200/70 px-4 py-1.5 text-xs text-amber-900">
+      <div class="max-w-7xl mx-auto flex items-center justify-between gap-2">
+        <span id="connectionStatusText">กำลังใช้โหมดจำลอง (Demo Data) — กด "ตั้งค่า Supabase" เพื่อเชื่อมฐานข้อมูล PostgreSQL จริง</span>
+        <span id="activeUserLabel" class="font-medium text-sky-900">ผู้ใช้งาน: ก้องภพ ใจดี (ม.5/1)</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-7xl mx-auto px-4 py-6 space-y-6">
+
+    <!-- แถบสรุปทักษะ 4 ด้าน -->
+    <section id="skillMasterySection" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4"></section>
+
+    <!-- =================================================================== -->
+    <!-- มุมมองนักเรียน ม.5 (STUDENT STUDIO)                                  -->
+    <!-- =================================================================== -->
+    <section id="studentView" class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+      <!-- คอลัมน์ซ้าย: รายการโจทย์และกรอบจัดเฟรม -->
+      <div class="lg:col-span-7 space-y-5">
+
+        <!-- ตัวเลือกโจทย์ -->
+        <div class="bg-white rounded-2xl border border-sky-100 p-4 shadow-sm">
+          <label class="block text-xs font-semibold text-sky-900 uppercase tracking-wide mb-2">
+            เลือกโจทย์ปฏิบัติการ (Learning Scenarios)
+          </label>
+          <div id="scenarioList" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5"></div>
+        </div>
+
+        <!-- รายละเอียดโจทย์และกรอบแสดงเฟรม -->
+        <div class="bg-white rounded-2xl border border-sky-100 p-5 shadow-sm space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <span id="scenarioBadge" class="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-200 text-amber-950 mb-1">
+                ระดับที่ 1 · single_frame
+              </span>
+              <h2 id="scenarioTitle" class="text-lg font-bold text-slate-900"></h2>
+              <p id="scenarioGoal" class="text-sm text-slate-600 mt-1"></p>
+            </div>
+            <button onclick="toggleGridGuide()" id="btnGridGuide"
+              class="px-3 py-1.5 rounded-xl border border-sky-200 bg-sky-50 hover:bg-sky-100 text-sky-900 text-xs font-medium transition">
+              เส้น Rule of Thirds: เปิดอยู่
+            </button>
+          </div>
+
+          <!-- กรอบตัวอย่างเฟรม / พรีวิวไฟล์ที่เลือก -->
+          <div class="relative w-full aspect-video rounded-xl overflow-hidden bg-slate-900 border border-slate-200 flex items-center justify-center">
+            <img id="framePreviewImg" src="" alt="ตัวอย่างเฟรมงานส่ง" class="w-full h-full object-cover hidden" />
+            <div id="frameMockStage" class="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white">
+              <p id="mockStageAngleLabel" class="text-xs uppercase tracking-wider text-amber-300 font-semibold mb-1"></p>
+              <p id="mockStageDesc" class="text-sm sm:text-base font-medium max-w-md"></p>
+            </div>
+            <div id="gridOverlay" class="absolute inset-0 grid-thirds pointer-events-none"></div>
+          </div>
+
+          <!-- เป้าหมายภาษาภาพของโจทย์ -->
+          <div id="scenarioTargets" class="flex flex-wrap gap-2 text-xs"></div>
+
+          <!-- ฟอร์มส่งงาน -->
+          <form onsubmit="handleSubmission(event)" class="space-y-3 pt-2 border-t border-slate-100">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">
+                  เลือกไฟล์ภาพหรือคลิปสั้น (ถ้าไม่เลือก จะใช้เฟรมจำลองของรอบถัดไป)
+                </label>
+                <input id="mediaFileInput" type="file" accept="image/*,video/*" onchange="handleFileChange(event)"
+                  class="block w-full text-xs text-slate-600 file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:text-xs file:font-medium file:bg-sky-100 file:text-sky-900 hover:file:bg-sky-200" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">
+                  เวอร์ชันที่กำลังจะส่ง
+                </label>
+                <input id="nextVersionDisplay" type="text" readonly value="v1 (รอบแรก)"
+                  class="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700" />
+              </div>
+            </div>
+
+            <div>
+              <label for="studentNoteInput" class="block text-xs font-medium text-slate-700 mb-1">
+                เหตุผลการเลือกมุมกล้อง ขนาดภาพ และองค์ประกอบภาพ (student_note)
+              </label>
+              <textarea id="studentNoteInput" rows="2" required
+                placeholder="อธิบายว่าเลือกมุมกล้อง ขนาดภาพ และการจัดวางองค์ประกอบอย่างไร เพื่อสื่ออารมณ์ตามโจทย์..."
+                class="w-full rounded-xl border border-slate-200 focus:border-sky-500 focus:ring-2 focus:ring-sky-200 outline-none p-2.5 text-sm"></textarea>
+            </div>
+
+            <div class="flex items-center justify-between gap-3">
+              <span id="submitFeedbackMsg" class="text-xs text-slate-500"></span>
+              <button type="submit" id="btnSubmitWork"
+                class="px-4 py-2.5 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium shadow-sm transition">
+                ส่งงานและตรวจวินิจฉัย
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- คอลัมน์ขวา: ผลวินิจฉัยและบันทึกการสะท้อนคิด -->
+      <div class="lg:col-span-5 space-y-5">
+
+        <!-- การ์ดผลวินิจฉัย -->
+        <div class="bg-white rounded-2xl border border-sky-100 p-5 shadow-sm space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-base font-bold text-slate-900">ผลการตรวจวินิจฉัย (Diagnostic)</h3>
+            <span id="diagnosticStatusBadge" class="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900">
+              รอปรับแก้ (Needs Revision)
+            </span>
+          </div>
+
+          <!-- คะแนนย่อย -->
+          <div class="grid grid-cols-3 gap-2.5 text-center">
+            <div class="rounded-xl bg-sky-50 p-3 border border-sky-100">
+              <div class="text-[11px] text-slate-500">เทคนิค (Technical)</div>
+              <div id="scoreTechnical" class="text-lg font-bold text-sky-900 mt-0.5">-</div>
+            </div>
+            <div class="rounded-xl bg-amber-50 p-3 border border-amber-100">
+              <div class="text-[11px] text-slate-500">การสื่อความหมาย</div>
+              <div id="scoreNarrative" class="text-lg font-bold text-amber-900 mt-0.5">-</div>
+            </div>
+            <div class="rounded-xl bg-slate-50 p-3 border border-slate-200">
+              <div class="text-[11px] text-slate-500">คะแนนรวม</div>
+              <div id="scoreTotal" class="text-lg font-bold text-slate-900 mt-0.5">-</div>
+            </div>
+          </div>
+
+          <!-- สิ่งที่ระบบตรวจพบ -->
+          <div class="rounded-xl bg-slate-50 p-3.5 border border-slate-200/80 space-y-1.5 text-xs">
+            <div class="font-semibold text-slate-800">สิ่งที่ตรวจจับได้จากชิ้นงาน:</div>
+            <div id="detectedSummary" class="text-slate-600 leading-relaxed"></div>
+          </div>
+
+          <!-- จุดที่ควรปรับและคำแนะนำ -->
+          <div class="space-y-2 text-xs">
+            <div class="font-semibold text-rose-700">จุดที่ควรปรับแก้ (Weaknesses):</div>
+            <ul id="weaknessesList" class="list-disc list-inside text-slate-700 space-y-1"></ul>
+          </div>
+
+          <div class="rounded-xl bg-amber-50/90 border border-amber-200 p-3.5 text-xs text-amber-950 leading-relaxed">
+            <span class="font-semibold">คำแนะนำลงมือแก้ทันที:</span>
+            <span id="actionableFeedbackText"></span>
+          </div>
+        </div>
+
+        <!-- การ์ดบันทึกการสะท้อนคิด -->
+        <div class="bg-white rounded-2xl border border-sky-100 p-5 shadow-sm space-y-3">
+          <h3 class="text-base font-bold text-slate-900">บันทึกการสะท้อนคิด (Student Reflection)</h3>
+          <p class="text-xs text-slate-500">
+            บันทึกสิ่งที่ปรับแก้จากเวอร์ชันแรกสู่เวอร์ชันล่าสุด เพื่อใช้เป็นหลักฐานพัฒนาการ (Before / After)
+          </p>
+          <form onsubmit="handleReflectionSubmit(event)" class="space-y-3">
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">สิ่งที่ปรับแก้จากรอบแรก (what_changed)</label>
+              <input id="whatChangedInput" type="text" required
+                placeholder="เช่น เปลี่ยนจาก Eye Level เป็น Low Angle และขยับตัวแบบเข้าใกล้จุดตัดสามส่วน"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-sky-500" />
+            </div>
+            <div>
+              <label class="block text-xs font-medium text-slate-700 mb-1">ความเข้าใจด้านภาษาภาพที่ได้ (visual_meaning_reason)</label>
+              <textarea id="visualReasonInput" rows="2" required
+                placeholder="เช่น มุมต่ำร่วมกับพื้นที่สายตาช่วยให้ตัวแบบดูมีพลังและเล่าเรื่องได้ชัดเจนขึ้น"
+                class="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs outline-none focus:border-sky-500"></textarea>
+            </div>
+            <div class="flex items-center justify-between gap-2">
+              <span id="reflectionStatusMsg" class="text-xs text-emerald-700 font-medium"></span>
+              <button type="submit"
+                class="px-3.5 py-2 rounded-xl bg-amber-300 hover:bg-amber-400 text-slate-900 text-xs font-semibold transition">
+                บันทึกการสะท้อนคิด
+              </button>
+            </div>
+          </form>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- =================================================================== -->
+    <!-- แดชบอร์ดครูผู้สอน (TEACHER DASHBOARD)                               -->
+    <!-- =================================================================== -->
+    <section id="teacherView" class="hidden space-y-6">
+      <div class="bg-white rounded-2xl border border-sky-100 p-5 shadow-sm">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div>
+            <h2 class="text-lg font-bold text-slate-900">สรุปผลการเรียนรู้และหลักฐานเชิงประจักษ์ (คศ.4)</h2>
+            <p class="text-xs text-slate-500">ภาพรวมพัฒนาการรายทักษะและสถานะการส่งงานของนักเรียน ม.5</p>
+          </div>
+          <button onclick="refreshAllData()"
+            class="px-3.5 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium transition">
+            รีเฟรชข้อมูลล่าสุด
+          </button>
+        </div>
+
+        <!-- สรุปค่าเฉลี่ยรายทักษะ -->
+        <div id="teacherSkillSummary" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6"></div>
+
+        <!-- ตารางติดตามการส่งงาน -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr class="border-b border-slate-200 bg-sky-50/70 text-slate-700">
+                <th class="py-2.5 px-3 font-semibold">นักเรียน</th>
+                <th class="py-2.5 px-3 font-semibold">โจทย์</th>
+                <th class="py-2.5 px-3 font-semibold">เวอร์ชัน</th>
+                <th class="py-2.5 px-3 font-semibold">คะแนนรวม</th>
+                <th class="py-2.5 px-3 font-semibold">สถานะ</th>
+                <th class="py-2.5 px-3 font-semibold">จุดที่ควรปรับหลัก</th>
+              </tr>
+            </thead>
+            <tbody id="teacherSubmissionsTable" class="divide-y divide-slate-100"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- โมดอลตั้งค่าการเชื่อมต่อ Supabase -->
+  <div id="configModal" class="fixed inset-0 bg-slate-900/40 hidden items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+      <h3 class="text-base font-bold text-slate-900">ตั้งค่าการเชื่อมต่อ Supabase (PostgreSQL)</h3>
+      <p class="text-xs text-slate-500 leading-relaxed">
+        กรอก Project URL และ Anon Key เพื่อเชื่อมกับตาราง <code class="bg-slate-100 px-1 rounded">learning_scenarios</code>,
+        <code class="bg-slate-100 px-1 rounded">submissions</code>, <code class="bg-slate-100 px-1 rounded">diagnostic_results</code> และ
+        <code class="bg-slate-100 px-1 rounded">skill_mastery_logs</code> หรือปล่อยว่างเพื่อใช้โหมดจำลอง
+      </p>
+      <div class="space-y-3 text-xs">
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Supabase Project URL</label>
+          <input id="sbUrlInput" type="url" placeholder="https://xxxxxxxxxxxx.supabase.co"
+            class="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500" />
+        </div>
+        <div>
+          <label class="block font-medium text-slate-700 mb-1">Supabase Anon Key</label>
+          <input id="sbKeyInput" type="password" placeholder="eyJhbGciOiJIUzI1NiIs..."
+            class="w-full rounded-xl border border-slate-200 px-3 py-2 outline-none focus:border-sky-500" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="clearSupabaseConfig()"
+          class="px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-600 hover:bg-slate-50">
+          ใช้โหมดจำลอง
+        </button>
+        <button onclick="toggleConfigModal(false)"
+          class="px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-700 hover:bg-slate-50">
+          ยกเลิก
+        </button>
+        <button onclick="saveSupabaseConfig()"
+          class="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-700 text-white text-xs font-medium">
+          บันทึกการเชื่อมต่อ
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // 1. ข้อมูลตั้งต้น (Demo Data) สำหรับใช้งานได้ทันทีแม้ยังไม่เชื่อม Supabase
+    // =========================================================================
+    const DEMO_USER = {
+      user_id: '11111111-1111-1111-1111-111111111111',
+      full_name: 'ก้องภพ ใจดี',
+      classroom: 'ม.5/1',
+      role: 'student'
+    };
+
+    const DEMO_SCENARIOS = [
+      {
+        scenario_id: 'scn-01',
+        level_order: 1,
+        mode: 'single_frame',
+        title: 'ระดับ 1: ชี้เป้าความสนใจด้วยขนาดภาพและจุดตัด',
+        narrative_goal: 'ดึงความสนใจไปยังวัตถุสำคัญ 1 ชิ้น โดยวางใกล้จุดตัดสามส่วนและคุมพื้นที่ว่างให้เหมาะสม',
+        target_angle: 'Eye Level',
+        target_shot_size: 'Close-Up',
+        target_composition: ['Rule of Thirds', 'Balanced Headroom'],
+        pass_threshold: 7.0
+      },
+      {
+        scenario_id: 'scn-02',
+        level_order: 2,
+        mode: 'single_frame',
+        title: 'ระดับ 2: พลิกอารมณ์ด้วยมุมกล้องและพื้นที่สายตา',
+        narrative_goal: 'สื่อความรู้สึกทรงพลัง/โดดเด่นด้วยมุมต่ำ (Low Angle) พร้อมเปิดพื้นที่ว่างด้านหน้าสายตา (Lookroom)',
+        target_angle: 'Low Angle',
+        target_shot_size: 'Medium Shot',
+        target_composition: ['Rule of Thirds', 'Lookroom'],
+        pass_threshold: 7.5
+      },
+      {
+        scenario_id: 'scn-03',
+        level_order: 3,
+        mode: 'multi_shot',
+        title: 'ระดับ 3: ย่อ-ขยายเรื่องราวบน Timeline (3 ช็อต)',
+        narrative_goal: 'ลำดับภาพจากภาพรวมสู่รายละเอียดสำคัญบน Timeline โดยคงความต่อเนื่องของอารมณ์',
+        target_angle: 'Eye Level',
+        target_shot_size: 'Wide -> Medium -> Close-Up',
+        target_composition: ['Rule of Thirds', 'Continuity'],
+        pass_threshold: 7.5
+      },
+      {
+        scenario_id: 'scn-04',
+        level_order: 4,
+        mode: 'multi_shot',
+        title: 'ระดับ 4: คุมความต่อเนื่องและจังหวะอารมณ์',
+        narrative_goal: 'คุมทิศทางสายตา (Eyeline Match) และจังหวะตัดต่อในฉากโต้ตอบ 4-5 ช็อต',
+        target_angle: 'Low Angle / High Angle',
+        target_shot_size: 'Varied Shot Sizes',
+        target_composition: ['Eyeline Match', 'Lookroom'],
+        pass_threshold: 8.0
+      }
+    ];
+
+    let state = {
+      role: 'student',
+      selectedScenarioId: 'scn-02',
+      showGrid: true,
+      uploadedPreviewUrl: '',
+      supabaseClient: null,
+      isConnected: false,
+      scenarios: [...DEMO_SCENARIOS],
+      submissions: [
+        {
+          submission_id: 'sub-101',
+          user_id: DEMO_USER.user_id,
+          student_name: DEMO_USER.full_name,
+          scenario_id: 'scn-02',
+          version_no: 1,
+          student_note: 'ถ่ายระดับสายตาและจัดตัวแบบไว้ด้านซ้ายของเฟรม',
+          status: 'needs_revision',
+          diagnostic: {
+            detected_angle: 'Eye Level',
+            detected_shot_size: 'Medium Shot',
+            detected_composition: ['Rule of Thirds', 'Tight Lookroom'],
+            score_technical: 7.0,
+            score_narrative: 6.5,
+            total_score: 6.8,
+            passed: false,
+            weaknesses: [
+              'ยังใช้มุมระดับสายตา (Eye Level) แทนมุมต่ำ (Low Angle) ตามโจทย์',
+              'พื้นที่ว่างด้านหน้าสายตา (Lookroom) ค่อนข้างแคบทำให้ตัวแบบดูอึดอัด'
+            ],
+            actionable_feedback: 'ลดระดับกล้องลงต่ำกว่าตัวแบบเล็กน้อย แล้วขยับตัวแบบให้มีพื้นที่ว่างด้านหน้าที่ตัวแบบหันมองเพิ่มขึ้น'
+          }
+        }
+      ],
+      skillMastery: [
+        { skill_category: 'angle', label: 'มุมกล้อง (Angle)', baseline_score: 6.2, latest_score: 6.8 },
+        { skill_category: 'shot_size', label: 'ขนาดภาพ (Shot Size)', baseline_score: 7.0, latest_score: 7.8 },
+        { skill_category: 'composition', label: 'องค์ประกอบภาพ', baseline_score: 6.0, latest_score: 7.2 },
+        { skill_category: 'continuity', label: 'ความต่อเนื่อง', baseline_score: 6.5, latest_score: 7.4 }
+      ],
+      reflections: []
+    };
+
+    // =========================================================================
+    // 2. การเชื่อมต่อ Supabase (หากมีการตั้งค่า URL + Anon Key)
+    // =========================================================================
+    function initSupabaseFromStorage() {
+      const url = localStorage.getItem('sb_url') || '';
+      const key = localStorage.getItem('sb_key') || '';
+      document.getElementById('sbUrlInput').value = url;
+      document.getElementById('sbKeyInput').value = key;
+
+      if (url && key && window.supabase) {
+        state.supabaseClient = window.supabase.createClient(url, key);
+        state.isConnected = true;
+        document.getElementById('connectionStatusText').textContent =
+          'เชื่อมต่อ Supabase สำเร็จ (' + url + ')';
+      } else {
+        state.supabaseClient = null;
+        state.isConnected = false;
+        document.getElementById('connectionStatusText').textContent =
+          'กำลังใช้โหมดจำลอง (Demo Data) — กด "ตั้งค่า Supabase" เพื่อเชื่อมฐานข้อมูล PostgreSQL จริง';
+      }
+    }
+
+    function toggleConfigModal(show) {
+      const modal = document.getElementById('configModal');
+      modal.classList.toggle('hidden', !show);
+      modal.classList.toggle('flex', show);
+    }
+
+    async function saveSupabaseConfig() {
+      const url = document.getElementById('sbUrlInput').value.trim();
+      const key = document.getElementById('sbKeyInput').value.trim();
+      localStorage.setItem('sb_url', url);
+      localStorage.setItem('sb_key', key);
+      initSupabaseFromStorage();
+      toggleConfigModal(false);
+      await refreshAllData();
+    }
+
+    async function clearSupabaseConfig() {
+      localStorage.removeItem('sb_url');
+      localStorage.removeItem('sb_key');
+      document.getElementById('sbUrlInput').value = '';
+      document.getElementById('sbKeyInput').value = '';
+      initSupabaseFromStorage();
+      toggleConfigModal(false);
+      await refreshAllData();
+    }
+
+    async function refreshAllData() {
+      if (!state.isConnected || !state.supabaseClient) {
+        renderAll();
+        return;
+      }
+
+      try {
+        const { data: scenariosData } = await state.supabaseClient
+          .from('learning_scenarios')
+          .select('*')
+          .eq('is_active', true)
+          .order('level_order', { ascending: true });
+
+        if (scenariosData && scenariosData.length > 0) {
+          state.scenarios = scenariosData;
+          if (!state.scenarios.some(s => s.scenario_id === state.selectedScenarioId)) {
+            state.selectedScenarioId = state.scenarios[0].scenario_id;
+          }
+        }
+
+        const { data: masteryData } = await state.supabaseClient
+          .from('skill_mastery_logs')
+          .select('*')
+          .eq('user_id', DEMO_USER.user_id);
+
+        if (masteryData && masteryData.length > 0) {
+          const labelMap = {
+            angle: 'มุมกล้อง (Angle)',
+            shot_size: 'ขนาดภาพ (Shot Size)',
+            composition: 'องค์ประกอบภาพ',
+            continuity: 'ความต่อเนื่อง'
+          };
+          state.skillMastery = masteryData.map(m => ({
+            skill_category: m.skill_category,
+            label: labelMap[m.skill_category] || m.skill_category,
+            baseline_score: Number(m.baseline_score),
+            latest_score: Number(m.latest_score)
+          }));
+        }
+
+        const { data: subsData } = await state.supabaseClient
+          .from('submissions')
+          .select('*, diagnostic_results(*)')
+          .order('submitted_at', { ascending: false })
+          .limit(30);
+
+        if (subsData) {
+          state.submissions = subsData.map(s => {
+            const diag = Array.isArray(s.diagnostic_results)
+              ? s.diagnostic_results[0]
+              : s.diagnostic_results;
+            return {
+              submission_id: s.submission_id,
+              user_id: s.user_id,
+              student_name: s.user_id === DEMO_USER.user_id ? DEMO_USER.full_name : 'นักเรียน ม.5',
+              scenario_id: s.scenario_id,
+              version_no: s.version_no,
+              student_note: s.student_note || '',
+              status: s.status,
+              diagnostic: diag ? {
+                detected_angle: diag.detected_angle || '-',
+                detected_shot_size: diag.detected_shot_size || '-',
+                detected_composition: Array.isArray(diag.detected_composition) ? diag.detected_composition : [],
+                score_technical: Number(diag.score_technical),
+                score_narrative: Number(diag.score_narrative),
+                total_score: Number(diag.total_score),
+                passed: Boolean(diag.passed),
+                weaknesses: Array.isArray(diag.weaknesses) ? diag.weaknesses : [],
+                actionable_feedback: diag.actionable_feedback || ''
+              } : null
+            };
+          });
+        }
+      } catch (err) {
+        console.error('Supabase fetch error:', err);
+      }
+
+      renderAll();
+    }
+
+    // =========================================================================
+    // 3. การจัดการสถานะและเหตุการณ์บนหน้าจอ
+    // =========================================================================
+    function switchRole(role) {
+      state.role = role;
+      const isStudent = role === 'student';
+      document.getElementById('studentView').classList.toggle('hidden', !isStudent);
+      document.getElementById('teacherView').classList.toggle('hidden', isStudent);
+
+      document.getElementById('btnRoleStudent').className = isStudent
+        ? 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-sky-600 text-white shadow-sm transition'
+        : 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-sky-900 hover:bg-sky-200/70 transition';
+
+      document.getElementById('btnRoleTeacher').className = !isStudent
+        ? 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium bg-sky-600 text-white shadow-sm transition'
+        : 'px-3 py-1.5 rounded-lg text-xs sm:text-sm font-medium text-sky-900 hover:bg-sky-200/70 transition';
+
+      renderAll();
+    }
+
+    function selectScenario(scenarioId) {
+      state.selectedScenarioId = scenarioId;
+      state.uploadedPreviewUrl = '';
+      document.getElementById('mediaFileInput').value = '';
+      renderAll();
+    }
+
+    function toggleGridGuide() {
+      state.showGrid = !state.showGrid;
+      renderFramePreview();
+    }
+
+    function handleFileChange(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) {
+        state.uploadedPreviewUrl = '';
+        renderFramePreview();
+        return;
+      }
+      if (file.type.startsWith('image/')) {
+        state.uploadedPreviewUrl = URL.createObjectURL(file);
+      } else {
+        state.uploadedPreviewUrl = '';
+      }
+      renderFramePreview();
+    }
+
+    async function handleSubmission(event) {
+      event.preventDefault();
+      const note = document.getElementById('studentNoteInput').value.trim();
+      const scenario = getCurrentScenario();
+      const currentSubs = getSubmissionsForCurrentScenario();
+      const nextVersion = currentSubs.length + 1;
+
+      document.getElementById('submitFeedbackMsg').textContent = 'กำลังบันทึกและตรวจวินิจฉัย...';
+
+      if (state.isConnected && state.supabaseClient) {
+        try {
+          const fileInput = document.getElementById('mediaFileInput');
+          const file = fileInput.files && fileInput.files[0];
+          let storageUrl = 'https://example.com/demo-frame.jpg';
+
+          if (file) {
+            const filePath = `${DEMO_USER.user_id}/${scenario.scenario_id}/v${nextVersion}_${Date.now()}_${file.name}`;
+            const { error: upErr } = await state.supabaseClient.storage
+              .from('student-media')
+              .upload(filePath, file);
+            if (!upErr) {
+              const { data: pubData } = state.supabaseClient.storage
+                .from('student-media')
+                .getPublicUrl(filePath);
+              if (pubData && pubData.publicUrl) storageUrl = pubData.publicUrl;
+            }
+          }
+
+          const { data: insertedSub, error: subErr } = await state.supabaseClient
+            .from('submissions')
+            .insert({
+              user_id: DEMO_USER.user_id,
+              scenario_id: scenario.scenario_id,
+              version_no: nextVersion,
+              media_type: file && file.type.startsWith('video/') ? 'video_clip' : 'image',
+              media_storage_url: storageUrl,
+              student_note: note,
+              status: 'pending'
+            })
+            .select()
+            .single();
+
+          if (subErr) throw subErr;
+          document.getElementById('submitFeedbackMsg').textContent =
+            `ส่งงานเวอร์ชัน v${nextVersion} เรียบร้อยแล้ว`;
+          document.getElementById('studentNoteInput').value = '';
+          await refreshAllData();
+          return;
+        } catch (err) {
+          console.error(err);
+          document.getElementById('submitFeedbackMsg').textContent =
+            'บันทึกผ่าน Supabase ไม่สำเร็จ — ตรวจสิทธิ์ RLS หรือ Bucket แล้วลองใหม่';
+          return;
+        }
+      }
+
+      // โหมดจำลอง: สร้างผลวินิจฉัยแบบปรับปรุงขึ้นเมื่อส่งเวอร์ชันถัดไป
+      const improved = nextVersion >= 2;
+      const techScore = improved ? 8.6 : 7.0;
+      const narScore = improved ? 8.8 : 6.5;
+      const totalScore = Number(((techScore + narScore) / 2).toFixed(1));
+      const passed = totalScore >= Number(scenario.pass_threshold || 7.0);
+
+      const newSub = {
+        submission_id: 'sub-' + Date.now(),
+        user_id: DEMO_USER.user_id,
+        student_name: DEMO_USER.full_name,
+        scenario_id: scenario.scenario_id,
+        version_no: nextVersion,
+        student_note: note,
+        status: passed ? 'passed' : 'needs_revision',
+        diagnostic: {
+          detected_angle: improved ? (scenario.target_angle || 'Low Angle') : 'Eye Level',
+          detected_shot_size: scenario.target_shot_size || 'Medium Shot',
+          detected_composition: improved
+            ? (scenario.target_composition || ['Rule of Thirds', 'Lookroom'])
+            : ['Rule of Thirds', 'Tight Lookroom'],
+          score_technical: techScore,
+          score_narrative: narScore,
+          total_score: totalScore,
+          passed: passed,
+          weaknesses: passed
+            ? []
+            : [
+                'มุมกล้องและพื้นที่ว่างในเฟรมยังไม่สอดคล้องกับเป้าหมายโจทย์อย่างเต็มที่',
+                'ควรปรับระยะ/มุมกล้องให้ขับเน้นจุดสนใจหลักให้ชัดเจนขึ้น'
+              ],
+          actionable_feedback: passed
+            ? 'จัดเฟรมและสื่ออารมณ์ได้ชัดเจนตามเกณฑ์ สามารถบันทึกการสะท้อนคิดเพื่อเก็บเป็นหลักฐานได้เลยครับ'
+            : 'ลองปรับมุมกล้องและจัดตำแหน่งองค์ประกอบใหม่ แล้วกดส่งงานรอบถัดไปเพื่อดูคะแนนที่เพิ่มขึ้นครับ'
+        }
+      };
+
+      state.submissions.unshift(newSub);
+      state.skillMastery = state.skillMastery.map(m => ({
+        ...m,
+        latest_score: Number(Math.min(9.5, Math.max(m.latest_score, totalScore)).toFixed(1))
+      }));
+
+      document.getElementById('studentNoteInput').value = '';
+      document.getElementById('submitFeedbackMsg').textContent =
+        `อัปเดตผลวินิจฉัยเวอร์ชัน v${nextVersion} แล้ว`;
+      renderAll();
+    }
+
+    async function handleReflectionSubmit(event) {
+      event.preventDefault();
+      const whatChanged = document.getElementById('whatChangedInput').value.trim();
+      const visualReason = document.getElementById('visualReasonInput').value.trim();
+      const scenario = getCurrentScenario();
+      const subs = getSubmissionsForCurrentScenario();
+
+      if (subs.length === 0) return;
+
+      if (state.isConnected && state.supabaseClient) {
+        const initialId = subs[subs.length - 1].submission_id;
+        const finalId = subs[0].submission_id;
+        const { error } = await state.supabaseClient
+          .from('student_reflections')
+          .upsert({
+            user_id: DEMO_USER.user_id,
+            scenario_id: scenario.scenario_id,
+            initial_submission_id: initialId,
+            final_submission_id: finalId,
+            what_changed: whatChanged,
+            visual_meaning_reason: visualReason
+          }, { onConflict: 'user_id,scenario_id' });
+
+        if (!error) {
+          document.getElementById('reflectionStatusMsg').textContent = 'บันทึกคำสะท้อนคิดลงฐานข้อมูลแล้ว';
+          return;
+        }
+      }
+
+      state.reflections.push({
+        scenario_id: scenario.scenario_id,
+        what_changed: whatChanged,
+        visual_meaning_reason: visualReason
+      });
+      document.getElementById('reflectionStatusMsg').textContent = 'บันทึกคำสะท้อนคิดเรียบร้อยแล้ว';
+    }
+
+    // =========================================================================
+    // 4. ฟังก์ชันช่วยและเรนเดอร์หน้าจอ
+    // =========================================================================
+    function getCurrentScenario() {
+      return state.scenarios.find(s => s.scenario_id === state.selectedScenarioId) || state.scenarios[0];
+    }
+
+    function getSubmissionsForCurrentScenario() {
+      return state.submissions.filter(s => s.scenario_id === getCurrentScenario().scenario_id);
+    }
+
+    function renderAll() {
+      renderSkillMastery();
+      if (state.role === 'student') {
+        renderScenarioList();
+        renderCurrentScenarioDetail();
+        renderFramePreview();
+        renderDiagnosticPanel();
+      } else {
+        renderTeacherDashboard();
+      }
+    }
+
+    function renderSkillMastery() {
+      const container = document.getElementById('skillMasterySection');
+      container.innerHTML = state.skillMastery.map(item => {
+        const diff = (item.latest_score - item.baseline_score).toFixed(1);
+        const sign = diff >= 0 ? `+${diff}` : diff;
+        return `
+          <div class="bg-white rounded-2xl border border-sky-100 p-4 shadow-sm">
+            <div class="flex items-center justify-between text-xs text-slate-500">
+              <span>${item.label}</span>
+              <span class="px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800">${sign}</span>
+            </div>
+            <div class="mt-2 flex items-baseline justify-between">
+              <span class="text-2xl font-bold text-slate-900">${item.latest_score.toFixed(1)}</span>
+              <span class="text-xs text-slate-400">เริ่ม ${item.baseline_score.toFixed(1)} / 10</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderScenarioList() {
+      const container = document.getElementById('scenarioList');
+      container.innerHTML = state.scenarios.map(scn => {
+        const active = scn.scenario_id === getCurrentScenario().scenario_id;
+        return `
+          <button type="button" onclick="selectScenario('${scn.scenario_id}')"
+            class="text-left p-3 rounded-xl border transition ${
+              active
+                ? 'border-sky-500 bg-sky-50/90 ring-2 ring-sky-200'
+                : 'border-slate-200 hover:border-sky-300 bg-white'
+            }">
+            <div class="text-[11px] font-semibold text-sky-700">ระดับที่ ${scn.level_order} · ${scn.mode}</div>
+            <div class="text-xs font-bold text-slate-900 mt-0.5 line-clamp-1">${scn.title}</div>
+          </button>
+        `;
+      }).join('');
+    }
+
+    function renderCurrentScenarioDetail() {
+      const scn = getCurrentScenario();
+      const subs = getSubmissionsForCurrentScenario();
+      document.getElementById('scenarioBadge').textContent =
+        `ระดับที่ ${scn.level_order} · ${scn.mode} · เกณฑ์ผ่าน ${scn.pass_threshold}`;
+      document.getElementById('scenarioTitle').textContent = scn.title;
+      document.getElementById('scenarioGoal').textContent = scn.narrative_goal;
+      document.getElementById('nextVersionDisplay').value = `v${subs.length + 1}`;
+
+      const targets = [
+        scn.target_angle ? `มุมกล้อง: ${scn.target_angle}` : null,
+        scn.target_shot_size ? `ขนาดภาพ: ${scn.target_shot_size}` : null,
+        ...(Array.isArray(scn.target_composition) ? scn.target_composition.map(c => `องค์ประกอบ: ${c}`) : [])
+      ].filter(Boolean);
+
+      document.getElementById('scenarioTargets').innerHTML = targets.map(t =>
+        `<span class="px-2.5 py-1 rounded-lg bg-sky-100/80 text-sky-900 font-medium">${t}</span>`
+      ).join('');
+    }
+
+    function renderFramePreview() {
+      const scn = getCurrentScenario();
+      const subs = getSubmissionsForCurrentScenario();
+      const latestSub = subs[0];
+      const diag = latestSub && latestSub.diagnostic;
+
+      document.getElementById('btnGridGuide').textContent =
+        `เส้น Rule of Thirds: ${state.showGrid ? 'เปิดอยู่' : 'ปิดอยู่'}`;
+      document.getElementById('gridOverlay').classList.toggle('hidden', !state.showGrid);
+
+      const imgEl = document.getElementById('framePreviewImg');
+      const stageEl = document.getElementById('frameMockStage');
+
+      if (state.uploadedPreviewUrl) {
+        imgEl.src = state.uploadedPreviewUrl;
+        imgEl.classList.remove('hidden');
+        stageEl.classList.add('hidden');
+      } else {
+        imgEl.classList.add('hidden');
+        stageEl.classList.remove('hidden');
+        document.getElementById('mockStageAngleLabel').textContent =
+          `มุมที่ตรวจพบ: ${diag ? diag.detected_angle : 'ยังไม่ส่งงาน'} · ${diag ? diag.detected_shot_size : ''}`;
+        document.getElementById('mockStageDesc').textContent = latestSub
+          ? `เวอร์ชัน v${latestSub.version_no}: "${latestSub.student_note}"`
+          : `เตรียมจัดเฟรมสำหรับ: ${scn.title}`;
+      }
+    }
+
+    function renderDiagnosticPanel() {
+      const subs = getSubmissionsForCurrentScenario();
+      const latest = subs[0];
+      const diag = latest && latest.diagnostic;
+
+      if (!diag) {
+        document.getElementById('diagnosticStatusBadge').textContent = 'ยังไม่มีผลวินิจฉัย';
+        document.getElementById('scoreTechnical').textContent = '-';
+        document.getElementById('scoreNarrative').textContent = '-';
+        document.getElementById('scoreTotal').textContent = '-';
+        document.getElementById('detectedSummary').textContent = 'ส่งชิ้นงานแรกเพื่อรับผลวินิจฉัย';
+        document.getElementById('weaknessesList').innerHTML = '';
+        document.getElementById('actionableFeedbackText').textContent = '-';
+        return;
+      }
+
+      const badge = document.getElementById('diagnosticStatusBadge');
+      badge.textContent = diag.passed ? `ผ่านเกณฑ์ (v${latest.version_no})` : `รอปรับแก้ (v${latest.version_no})`;
+      badge.className = diag.passed
+        ? 'px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-900'
+        : 'px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-100 text-amber-900';
+
+      document.getElementById('scoreTechnical').textContent = `${diag.score_technical.toFixed(1)} / 10`;
+      document.getElementById('scoreNarrative').textContent = `${diag.score_narrative.toFixed(1)} / 10`;
+      document.getElementById('scoreTotal').textContent = `${diag.total_score.toFixed(1)} / 10`;
+
+      const compText = Array.isArray(diag.detected_composition) && diag.detected_composition.length > 0
+        ? diag.detected_composition.join(', ')
+        : '-';
+
+      document.getElementById('detectedSummary').innerHTML = `
+        <div><strong>มุมกล้อง:</strong> ${diag.detected_angle} | <strong>ขนาดภาพ:</strong> ${diag.detected_shot_size}</div>
+        <div><strong>องค์ประกอบที่ตรวจพบ:</strong> ${compText}</div>
+      `;
+
+      const weakList = document.getElementById('weaknessesList');
+      if (Array.isArray(diag.weaknesses) && diag.weaknesses.length > 0) {
+        weakList.innerHTML = diag.weaknesses.map(w => `<li>${w}</li>`).join('');
+      } else {
+        weakList.innerHTML = '<li class="text-emerald-700">ไม่พบจุดอ่อนสำคัญตามเกณฑ์ของโจทย์นี้</li>';
+      }
+
+      document.getElementById('actionableFeedbackText').textContent =
+        diag.actionable_feedback || 'พร้อมพัฒนาต่อในโจทย์ถัดไป';
+    }
+
+    function renderTeacherDashboard() {
+      const summaryContainer = document.getElementById('teacherSkillSummary');
+      summaryContainer.innerHTML = state.skillMastery.map(item => {
+        const gain = (item.latest_score - item.baseline_score).toFixed(1);
+        return `
+          <div class="rounded-2xl border border-sky-100 bg-sky-50/50 p-4">
+            <div class="text-xs font-medium text-slate-600">${item.label}</div>
+            <div class="mt-1.5 flex items-baseline justify-between">
+              <span class="text-xl font-bold text-sky-950">${item.latest_score.toFixed(1)}</span>
+              <span class="text-xs font-semibold text-emerald-700">เพิ่มขึ้น +${gain}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      const tbody = document.getElementById('teacherSubmissionsTable');
+      tbody.innerHTML = state.submissions.map(sub => {
+        const scn = state.scenarios.find(s => s.scenario_id === sub.scenario_id);
+        const diag = sub.diagnostic;
+        const passed = diag ? diag.passed : false;
+        const firstWeakness = diag && Array.isArray(diag.weaknesses) && diag.weaknesses.length > 0
+          ? diag.weaknesses[0]
+          : 'ผ่านเกณฑ์ครบถ้วน';
+
+        return `
+          <tr>
+            <td class="py-3 px-3 font-medium text-slate-900">${sub.student_name || 'นักเรียน ม.5'}</td>
+            <td class="py-3 px-3 text-slate-700">${scn ? scn.title : sub.scenario_id}</td>
+            <td class="py-3 px-3 font-semibold text-sky-800">v${sub.version_no}</td>
+            <td class="py-3 px-3 font-bold text-slate-900">${diag ? diag.total_score.toFixed(1) : '-'}</td>
+            <td class="py-3 px-3">
+              <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold ${
+                passed ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-900'
+              }">
+                ${passed ? 'ผ่านเกณฑ์' : 'รอปรับแก้'}
+              </span>
+            </td>
+            <td class="py-3 px-3 text-slate-600">${firstWeakness}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    // เริ่มต้นระบบ
+    initSupabaseFromStorage();
+    refreshAllData();
+  </script>
+</body>
+</html>
